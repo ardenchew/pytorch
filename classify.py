@@ -18,8 +18,13 @@ def get_args():
     parser.add_argument("--algorithm", type=str,
                         help="The name of the algorithm to use. (Only used for training; inferred from the model file at test time.)")
     parser.add_argument("--predictions-file", type=str, help="The predictions file to create. (Only used for testing.)")
-
-    # TODO: Add optional command-line arguments as necessary.
+    parser.add_argument("--online-training-iterations", type=int, help="The number of training iterations for online methods.", default=5)
+    parser.add_argument("--online-learning-rate", type=float,
+                        help="The learning rate for logistic regression", default=0.01)
+    parser.add_argument("--num-features-to-select", type=int,
+                        help="The number of features to use for logistic regression", default=-1)
+    parser.add_argument("--gd-iterations", type=int,
+                        help="The number of iterations of gradient descent to perform", default=20)
 
     args = parser.parse_args()
 
@@ -51,7 +56,13 @@ def main():
 
         # Create the model.
         # TODO: Add other algorithms as necessary.
-        if args.algorithm.lower() == 'useless':
+        if args.algorithm.lower() == 'logisticregression':
+            model = models.LogisticRegression(args.online_learning_rate, args.num_features_to_select,args.gd_iterations)
+        elif args.algorithm.lower() == 'sumoffeatures':
+            model = models.SumOfFeatures()
+        elif args.algorithm.lower() == 'perceptron':
+            model = models.Perceptron(args.online_learning_rate,args.online_training_iterations)
+        elif args.algorithm.lower() == 'useless':
             model = models.Useless()
         else:
             raise Exception('The model given by --model is not yet supported.')
