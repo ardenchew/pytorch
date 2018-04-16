@@ -25,8 +25,7 @@ def get_args():
                         help="The number of features to use for logistic regression", default=-1)
     parser.add_argument("--gd-iterations", type=int,
                         help="The number of iterations of gradient descent to perform", default=20)
-
-    args = parser.parse_args()
+    parser.add_argument("--num-boosting-iterations", type=int, help="The number of boosting iterations to run.",default=10)
 
     return args
 
@@ -56,7 +55,9 @@ def main():
 
         # Create the model.
         # TODO: Add other algorithms as necessary.
-        if args.algorithm.lower() == 'logisticregression':
+        if args.algorithm.lower() == 'adaboost':
+            model = models.Adaboost(args.num_boosting_iterations)
+        elif args.algorithm.lower() == 'logisticregression':
             model = models.LogisticRegression(args.online_learning_rate, args.num_features_to_select,args.gd_iterations)
         elif args.algorithm.lower() == 'sumoffeatures':
             model = models.SumOfFeatures()

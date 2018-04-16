@@ -175,6 +175,93 @@ class Perceptron(Model):
             y_hat[i] = 1 if y_hat[i] >= 0 else 0
                 
         return y_hat
+    
+class Adaboost(Model):
+
+    def __init__(self, iterations):
+        super().__init__()
+        self.T = iterations
+        self.error_thresh =  0.000001
+        
+    def convert_labels(self, y):
+        if (-1 not in y):
+            y = (y-1) + y
+        return y
+    
+    def get_h(self, X, y, D, cutoffs):
+        
+        c, a, f, e = cutoffs[0][0], 0, 0, 999 
+        for i in range(self.num_features):
+            for j in range(cutoffs[i].shape[0]):
+                cur_cutoff = cutoffs[i][j]
+                x = X.getcol(i).toarray().flatten()
+                h = (((x > cur_cutoff) & (y == -1)) | ((x <= cur_cutoff) & (y == 1))).astype(float)
+                epsilon = np.dot(D,h)
+                if (epsilon < e):
+                    c, a, f, e = cur_cutoff, 0, i, epsilon
+                if (epsilon < 0.000001):
+                    return c,a,f,epsilon
+                h = (((x <= cur_cutoff) & (y == -1)) | ((x > cur_cutoff) & (y == 1))).astype(float)
+                epsilon = np.dot(D,h)
+                if (epsilon < e):
+                    c, a, f, e = cur_cutoff, 1, i, epsilon
+                if (epsilon < 0.000001):
+                    return c,a,f,epsilon
+        return c,a,f,e
+    
+    def get_cutoff_matrix(self, X):
+        cutoffs = []
+        for i in range(self.num_features):
+            x = np.sort(np.unique(X.getcol(i).toarray().squeeze())).tolist() #should this be unique?
+            x = ((np.asarray((x+[0])) - np.asarray(([0]+x)))/2)+np.asarray([0]+x)
+            x = x[1:(x.shape[0]-1)]
+            cutoffs.append(np.unique(x))
+        return cutoffs
+
+    def fit(self, X, y):
+        self.num_examples, self.num_features = X.shape
+        y = self.convert_labels(y)
+        
+        self.D = np.full([self.num_examples], (1/self.num_examples))
+        
+        cutoffs = self.get_cutoff_matrix(X) #replace self in cutoffs
+        self.H_c = [] #cutoff
+        self.H_a = [] #boolean (ge or l)
+        self.H_f = [] #feature idx
+        self.alpha = []
+        
+        for i in range(self.T):
+            c, a, f, e = self.get_h(X,y,self.D,cutoffs)
+            if (e < 0.000001):
+                break
+            self.H_c.append(c)
+            self.H_a.append(a)
+            self.H_f.append(int(f))
+            self.alpha.append(((0.5)*np.log((1-e)/e)))
+            x = X.getcol(self.H_f[i]).toarray().flatten()
+            if (a & 1):
+                h = (x <= c).astype(float)
+                h = (h-1) + h
+            else:
+                h = (x > c).astype(float)
+                h = (h-1) + h
+            Z = np.dot(self.D, np.exp((-self.alpha[i])*(y*h)))
+            self.D = (1/Z)*(self.D*np.exp((-self.alpha[i])*(y*h)))
+            
+    def predict(self, X):
+        
+        examples, features = X.shape
+        y_hat = np.zeros(X.shape[0], dtype=int)
+        
+        for i in range(X.shape[0]):
+            x = X.getrow(i).toarray().flatten().tolist()
+            idx = (np.array([x[j] for j in self.H_f]) > np.array(self.H_c)).astype(int)
+            idx = np.abs(idx-np.asarray(self.H_a)).astype(int)
+            idx = (idx-1) + idx
+            idx = idx * np.asarray(self.alpha)
+            y_hat[i] = 1 if (np.sum(idx) >= 0) else 0            
+        
+        return y_hat
 
 class Useless(Model):
 
