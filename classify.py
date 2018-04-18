@@ -27,6 +27,8 @@ def get_args():
                         help="The number of iterations of gradient descent to perform", default=20)
     parser.add_argument("--num-boosting-iterations", type=int, help="The number of boosting iterations to run.",default=10)
 
+    args = parser.parse_args()
+
     return args
 
 
