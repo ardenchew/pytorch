@@ -26,7 +26,12 @@ def get_args():
     parser.add_argument("--gd-iterations", type=int,
                         help="The number of iterations of gradient descent to perform", default=20)
     parser.add_argument("--num-boosting-iterations", type=int, help="The number of boosting iterations to run.",default=10)
-
+    parser.add_argument("--cluster_lambda", type=float,
+                        help="The value of lambda in lambda-means", default=0.0)
+    parser.add_argument("--clustering_training_iterations", type=int,
+                        help="The number of training EM iterations")
+    parser.add_argument("--number_of_clusters", type=int,
+                        help="The number of clusters (K) to be used.")
     args = parser.parse_args()
 
     return args
@@ -59,19 +64,28 @@ def main():
         # TODO: Add other algorithms as necessary.
         if args.algorithm.lower() == 'adaboost':
             model = models.Adaboost(args.num_boosting_iterations)
+            model.fit(X, y)
         elif args.algorithm.lower() == 'logisticregression':
             model = models.LogisticRegression(args.online_learning_rate, args.num_features_to_select,args.gd_iterations)
+            model.fit(X, y)
         elif args.algorithm.lower() == 'sumoffeatures':
             model = models.SumOfFeatures()
+            model.fit(X, y)
         elif args.algorithm.lower() == 'perceptron':
             model = models.Perceptron(args.online_learning_rate,args.online_training_iterations)
+            model.fit(X, y)
+        elif args.algorithm.lower() == 'lambda_means':
+            model = models.LambdaMeans()
+            model.fit(X, y, lambda0=args.cluster_lambda, iterations=args.clustering_training_iterations)
+        elif args.algorithm.lower() == 'stochastic_k_means':
+            model = models.StochasticKMeans()
+            model.fit(X, y, num_clusters=args.number_of_clusters, iterations=args.clustering_training_iterations)
         elif args.algorithm.lower() == 'useless':
             model = models.Useless()
+            model.fit(X, y)
         else:
             raise Exception('The model given by --model is not yet supported.')
-
-        # Train the model.
-        model.fit(X, y)
+        
 
         # Save the model.
         try:

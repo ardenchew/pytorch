@@ -29,6 +29,124 @@ class Model(object):
         """
         raise NotImplementedError()
 
+class LambdaMeans(Model):
+
+    def __init__(self):
+        super().__init__()
+        # TODO: Initializations etc. go here.
+        pass
+
+    def fit(self, X, _, **kwargs):
+        """  Fit the lambda means model  """
+        assert 'lambda0' in kwargs, 'Need a value for lambda'
+        assert 'iterations' in kwargs, 'Need the number of EM iterations'
+        lambda0 = kwargs['lambda0']
+        iterations = kwargs['iterations']
+        
+        self.num_examples, self.num_features = X.shape  
+        
+        X = np.array(X.todense())
+        X_T = np.array(np.transpose(X)) # transpose for column access
+        
+        self.prototypes = []
+        self.prototypes.append([i.mean() for i in X_T])
+        self.prototypes = np.transpose(self.prototypes)
+        
+        if (lambda0 == 0):
+            lambda0 = np.mean([np.linalg.norm(self.prototypes[:,0]-i) for i in X])
+        
+        for _ in range(iterations):
+            r_nk = np.zeros([self.num_examples,self.prototypes.shape[1]])
+            for i in range(self.num_examples):
+                dist = np.array([np.linalg.norm(self.prototypes[:,j]-X[i]) for j in range(self.prototypes.shape[1])])
+                if all(dist > lambda0):
+                    self.prototypes = np.concatenate((self.prototypes,np.expand_dims(X[i],axis=1)), axis=1)
+                    r_nk = np.concatenate((r_nk,np.zeros([self.num_examples,1])), axis=1)
+                    r_nk[i,(r_nk.shape[1]-1)] = 1
+                else:
+                    r_nk[i,np.argmin(dist)] = 1
+                    
+            #M step
+            temp_prototypes = []
+            for i in range(self.prototypes.shape[1]):
+                r = np.expand_dims(r_nk[:,i], axis=1)
+                temp_prototype_vector = [np.sum((X*r)[:,j])/np.sum(r) for j in range(self.num_features)]
+                temp_prototypes.append(temp_prototype_vector)
+            self.prototypes = np.transpose(np.array(temp_prototypes))
+                
+
+    def predict(self, X):
+        X = np.array(X.todense())
+        y_hat = np.zeros(X.shape[0])
+        for i in range(X.shape[0]):
+            dist = np.array([np.linalg.norm(self.prototypes[:,j]-X[i]) for j in range(self.prototypes.shape[1])])
+            y_hat[i] = np.argmin(dist)
+        
+        return y_hat
+
+class StochasticKMeans(Model):
+
+    def __init__(self):
+        super().__init__()
+        # TODO: Initializations etc. go here.
+        pass
+
+    def fit(self, X, _, **kwargs):
+        assert 'num_clusters' in kwargs, 'Need the number of clusters (K)'
+        assert 'iterations' in kwargs, 'Need the number of EM iterations'
+        num_clusters = kwargs['num_clusters']
+        iterations = kwargs['iterations']
+        # TODO: Write code to fit the model.  NOTE: labels should not be used here.
+        
+        self.num_examples, self.num_features = X.shape  
+        
+        X = np.array(X.todense())
+        X_T = np.array(np.transpose(X)) # transpose for column access
+        
+        K = num_clusters
+        c = 2
+        
+        self.prototypes = []
+        
+        if (K == 1):
+            self.prototypes.append([i.mean() for i in X_T])
+        else:
+            prototype_min = np.array([i.min() for i in X_T])
+            prototype_max = np.array([i.max() for i in X_T])
+            
+            self.prototypes.append(list(prototype_min))
+            dif_incr = (prototype_max-prototype_min)/(K-1)
+            for i in range(1,K):
+                self.prototypes.append(list(prototype_min+(i*dif_incr)))
+            
+        self.prototypes = np.transpose(self.prototypes)
+        
+        for _ in range(iterations):
+            beta = c * (_ + 1)
+            p_nk = np.zeros([self.num_examples,self.prototypes.shape[1]])
+            for i in range(self.num_examples):
+                d_hat = np.mean([np.linalg.norm(self.prototypes[:,j] - X[i]) for j in range(self.prototypes.shape[1])])
+                denom = np.sum([np.exp(((-beta)*np.linalg.norm(self.prototypes[:,j]-X[i]))/d_hat) for j in range(self.prototypes.shape[1])])
+                p_nk[i] = np.array([(np.exp(((-beta)*np.linalg.norm(self.prototypes[:,j]-X[i]))/d_hat))/denom for j in range(self.prototypes.shape[1])])
+        
+            #M step
+            temp_prototypes = []
+            for i in range(self.prototypes.shape[1]):
+                p = np.expand_dims(p_nk[:,i], axis=1)
+                temp_prototype_vector = [np.sum((X*p)[:,j])/np.sum(p) for j in range(self.num_features)]
+                temp_prototypes.append(temp_prototype_vector)
+            self.prototypes = np.transpose(np.array(temp_prototypes))
+            
+
+    def predict(self, X):
+        X = np.array(X.todense())
+        y_hat = np.zeros(X.shape[0])
+        for i in range(X.shape[0]):
+            dist = np.array([np.linalg.norm(self.prototypes[:,j]-X[i]) for j in range(self.prototypes.shape[1])])
+            y_hat[i] = np.argmin(dist)
+        
+        return y_hat
+
 class LogisticRegression(Model):
 
     def __init__(self, learning_rate, num_selected_features, gd_iterations):
